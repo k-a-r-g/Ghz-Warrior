@@ -2,6 +2,6 @@ The Ghz Warrior is based on Firmware 1.4 of the Digital Warrior by Tomash Ghz.
 Continuing his version numbering scheme, we therefore start with 1.4
 
 Version 1.4.1
-- display version on startup
+- rearranged code
 - rudimentory SD card support
-
+- display version on startup
