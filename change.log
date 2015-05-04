@@ -5,3 +5,9 @@ Version 1.4.1
 - rearranged code
 - rudimentory SD card support
 - display version on startup
+
+Version 1.4.2
+  + removed parts to control Ableton
+  + removed parts for extension board
+  + further rearranged code to allow more flexible use of potentiometers and buttons later
+  + Probability is shown from 0-100 (%) instead of 0-127
