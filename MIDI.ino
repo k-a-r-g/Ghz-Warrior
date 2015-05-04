@@ -1,31 +1,25 @@
-
-// #####################################################################################################################
+// Functions:
+//
+// void midiNoteOnOff(boolean s, int n)                - ...
+// void OnNoteOn(byte channel, byte note, byte velocity) 
+// void OnNoteOff(byte channel, byte note, byte velocity)   
+// void OnPitchChange(byte channel, int pitch)   
+// void realTimeSystem(byte realtimebyte)    
+// void OnCC(byte channel, byte control, byte value)
+//
+//######################################################################################
 // function to handle noteon outgoing messages
 void midiNoteOnOff(boolean s, int n) {
 
   if (s) {
-    if (debug) {//debbuging enabled
-      Serial.print("Button ");
-      Serial.print(n);
-      Serial.println(" pressed.");
-    }
-    else {
-      usbMIDI.sendNoteOn(n, 127, midiChannel);
-      if(secondary)
-        usbMIDI.sendControlChange(n, 127, midiChannel);
-    }
+    MIDI.sendNoteOn(n, 127, midiChannel);
+    usbMIDI.sendNoteOn(n, 127, midiChannel);
+    if(secondary) usbMIDI.sendControlChange(n, 127, midiChannel);
   }
   else {
-    if (debug) {//debbuging enabled
-      Serial.print("Button ");
-      Serial.print(n);
-      Serial.println(" released.");
-    }
-    else {
-      usbMIDI.sendNoteOff(n, 0, midiChannel);
-      if(secondary)
-        usbMIDI.sendControlChange(n, 0, midiChannel);
-    }
+    MIDI.sendNoteOff(n, 0, midiChannel);
+    usbMIDI.sendNoteOff(n, 0, midiChannel);
+    if(secondary) usbMIDI.sendControlChange(n, 0, midiChannel);
   }
 }
 
@@ -35,13 +29,13 @@ void OnNoteOn(byte channel, byte note, byte velocity) {
   // add all your output component sets that will trigger with note ons
   if(encodersBanked==1){
     for (int i=0; i<8;i++) {
-      encLed[i][0]->setOnSilent(channel, note, velocity);
-      encLed[i][1]->setOnSilent(channel, note, velocity);
+// Karg:      encLed[i][0]->setOnSilent(channel, note, velocity);
+// Karg:      encLed[i][1]->setOnSilent(channel, note, velocity);
     }
   }else
   {
-   encLed[0][0]->setOnSilent(channel, note, velocity);
-   encLed[0][1]->setOnSilent(channel, note, velocity);
+// Karg:   encLed[0][0]->setOnSilent(channel, note, velocity);
+// Karg:   encLed[0][1]->setOnSilent(channel, note, velocity);
   }
 
   if (channel==midiChannel) {
@@ -74,9 +68,7 @@ void OnNoteOn(byte channel, byte note, byte velocity) {
   }
   
   if(midiThrough){
-    if((channel!=controlChannel)&&(channel!=sequencerChannel)&&(channel!=midiChannel)){
-      // (Karg) MIDI.sendNoteOn(note,velocity,channel);
-    }
+    if((channel!=controlChannel)&&(channel!=sequencerChannel)&&(channel!=midiChannel)) MIDI.sendNoteOn(note,velocity,channel);
   }
 }
 
@@ -85,12 +77,12 @@ void OnNoteOff(byte channel, byte note, byte velocity) {
   // add all your output component sets that will trigger with note ons
   if(encodersBanked==1){
     for (int i=0; i<8;i++) {
-      encLed[i][0]->setOff(channel, note, velocity);
-      encLed[i][1]->setOff(channel, note, velocity);
+// Karg:      encLed[i][0]->setOff(channel, note, velocity);
+// Karg:      encLed[i][1]->setOff(channel, note, velocity);
     }
   }else{
-    encLed[0][0]->setOff(channel, note, velocity);
-    encLed[0][1]->setOff(channel, note, velocity);
+// Karg:    encLed[0][0]->setOff(channel, note, velocity);
+// Karg:    encLed[0][1]->setOff(channel, note, velocity);
   }
 
   if (channel==midiChannel) {
@@ -103,18 +95,14 @@ void OnNoteOff(byte channel, byte note, byte velocity) {
   }
   
   if(midiThrough){
-    if((channel!=controlChannel)&&(channel!=sequencerChannel)&&(channel!=midiChannel)){
-      // (Karg) MIDI.sendNoteOff(note,velocity,channel);
-    }
+    if((channel!=controlChannel)&&(channel!=sequencerChannel)&&(channel!=midiChannel)) MIDI.sendNoteOff(note,velocity,channel);
   }
 }
 
 // #####################################################################################################################
 void OnPitchChange(byte channel, int pitch) {
   if(midiThrough){
-    if((channel!=controlChannel)&&(channel!=sequencerChannel)&&(channel!=midiChannel)){
-      // (Karg) MIDI.sendPitchBend (pitch, channel);
-    }
+    if((channel!=controlChannel)&&(channel!=sequencerChannel)&&(channel!=midiChannel)) MIDI.sendPitchBend (pitch, channel);
   }
 }
 
@@ -126,7 +114,7 @@ void RealTimeSystem(byte realtimebyte) {
   
   if (realtimebyte == 248) {
 	if(!sequencerPaused){
-		// (Karg) MIDI.sendRealTime(Clock);
+		MIDI.sendRealTime(Clock);
 		//usbMIDI.sendRealTimeClock();
 		
 		clockCounter++; 
@@ -191,14 +179,14 @@ void RealTimeSystem(byte realtimebyte) {
   }
   
    if(realtimebyte == START){
-       //    MIDI.sendRealTime(Stop);
-       //MIDI.sendSongPosition(0);
-       //    MIDI.sendRealTime(SystemReset);
-       // (Karg) MIDI.sendRealTime(Start); 
+       // MIDI.sendRealTime(Stop);
+       // MIDI.sendSongPosition(0);
+       // MIDI.sendRealTime(SystemReset);
+       MIDI.sendRealTime(Start); 
      }
    if(realtimebyte == CONTINUE){
-       // (Karg) MIDI.sendSongPosition(0);
-       // (Karg) MIDI.sendRealTime(Continue); 
+       MIDI.sendSongPosition(0);
+       MIDI.sendRealTime(Continue); 
    }
   
 }
@@ -243,9 +231,7 @@ void OnCC(byte channel, byte control, byte value) {
     }
   }
   if(midiThrough){
-    if((channel!=controlChannel)&&(channel!=sequencerChannel)&&(channel!=midiChannel)){
-      // (Karg) MIDI.sendControlChange(control,value,channel);
-    }
+    if((channel!=controlChannel)&&(channel!=sequencerChannel)&&(channel!=midiChannel)) MIDI.sendControlChange(control,value,channel);
   }
 }
 

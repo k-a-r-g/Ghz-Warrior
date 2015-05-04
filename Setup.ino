@@ -1,20 +1,40 @@
+// Functions:
+//
+// void Setup()                                        - Setup routines
+// 
+// #####################################################################################################################
 void setup() {
-  pinMode(0, INPUT_PULLUP); //shift button
+  initSd();                                    // initialize SD card
+  if (sdPresent) loadSetupSd();
+  else loadSetupEe();
 
-  _display.begin(1);  // use default address 1
-  _buttonpad.begin(0);      // use default address 0
+  pinMode(LCD_LATCH_PIN, OUTPUT);              // initialoze lcd display
+  pinMode(LCD_CLOCK_PIN, OUTPUT);
+  pinMode(LCD_DATA_PIN, OUTPUT);
+
+  char versionStr[4];
+  memcpy(versionStr, versionNum, 3);
+  if (sdPresent)  versionStr[3] = 's';
+  else versionStr[3] = 'e';
+  lcdPrintStr(versionStr);
+  lcdTimer.begin(sevenSegUpdate,100);
+
+  pinMode(SHIFT_BUTTON_PIN, INPUT_PULLUP); 
+  pinMode(TRACKS_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(SEQ_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(EDIT_BUTTON_PIN, INPUT_PULLUP);   
 
   initButtonpad();
-  initDisplay();      // crlear display
+  initLEDmatrix();                          // clear display
   clearPages();
 
   // init sequencer
-  for (int i=0; i<4; i++){
+  for (int i=0; i<VOICES; i++) {            // initialize all voices...
     msCurrentStep[i]=0;
     msDirection[i]=0;
     msRootNote[i]=0;
     msStepLength[i]=1;
-	msLastTie[i]=false;
+    msLastTie[i]=false;
     msDirAscending[i]=false;
     msChannelHasPattern[i]=false;
     msChannel[i]=sequencerChannel+1+i;
@@ -24,9 +44,9 @@ void setup() {
     msLastPlayed[i]=false;
     msLastPlayedNote[i]=0;
     msMuted[i]=false;
-    for(int j=0; j<4; j++){
+    for(int j=0; j<PATTERNS; j++){          // ...initialize all patterns in these voice...
       msHasPattern[i][j]=false;
-      for(int k=0; k<32; k++){
+      for(int k=0; k<STEPS; k++){           // ...and each step of these patterns
         msStepState[i][j][k]=false;
         msStepNote[i][j][k]=48;
         msStepVelocity[i][j][k]=0;
@@ -34,41 +54,21 @@ void setup() {
         msStepLegato[i][j][k]=false;
       }
     }
-  }
-  
-  loadSetup();
-  
-  welcomeAnimation();
-  
+  }  
+    
+/* Karg
   for (int i=0; i<8; i++) {
-    encBut[i][0]=new Button(11, controlChannel, 0+i*2, false, debug); // encoder buttons
-    encBut[i][1]=new Button(2, controlChannel, 1+i*2, false, debug);
+    encBut[i][0]=new Button(16, controlChannel, 0+i*2, false); // encoder buttons
+    encBut[i][1]=new Button(2, controlChannel, 1+i*2, false);
     encLed[i][0]=new RGLed(4, 3, controlChannel, 0+i*2, false);//encoder LED
     encLed[i][1]=new RGLed(6, 5, controlChannel, 1+i*2, false);//encoder LED
-  }
+  } Karg */
   
-  pot1=new Potentiometer(14, controlChannel, 17, false, debug); // knob on pin 45 (A7)
-  pot2=new Potentiometer(15, controlChannel, 18, false, debug); // knob on pin 44 (A6)
-  pot3=new Potentiometer(16, controlChannel, 19, false, debug); // knob on pin 45 (A7)
-  pot4=new Potentiometer(17, controlChannel, 20, false, debug); // knob on pin 44 (A6)
-  
-  pinMode(latchPin, OUTPUT);
-  pinMode(clockPin, OUTPUT);
-  pinMode(dataPin, OUTPUT);
-  
-  lcdPrintStr("seqc");
-  
-  // setup expansion mux pins
-  pinMode(muxAA,OUTPUT);
-  pinMode(muxAB,OUTPUT);
-  pinMode(muxAC,OUTPUT);
-  pinMode(muxAD,OUTPUT);
-  // for expansion knobs
-  for(int i=0; i<6;i++){
-    expPot[i]=new Potentiometer(A6,controlChannel,21+i,false,debug);
-  }
-  
-  //if(stepSequencer)
+  pot1=new Potentiometer(OCT_POT_PIN, controlChannel, 17, false, false);
+  pot2=new Potentiometer(NOTE_POT_PIN, controlChannel, 18, false, false);
+  pot3=new Potentiometer(VEL_POT_PIN, controlChannel, 19, false, false);
+  pot4=new Potentiometer(CHANCE_POT_PIN, controlChannel, 20, false, false);
+   
   setPagePixel(WHITE, 1, 12);
   setPagePixel(WHITE, 1, 13);
   setPagePixel(GREEN, 4, 0);
@@ -76,25 +76,23 @@ void setup() {
   setPagePixel(YELLOW, 4, 2);
   setPagePixel(RED, 4, 12);
     
-//  MIDI.begin();
-  
+  MIDI.begin();
   usbMIDI.setHandleNoteOff(OnNoteOff); //set event handler for note off
   usbMIDI.setHandleNoteOn(OnNoteOn); //set event handler for note on
   usbMIDI.setHandleControlChange(OnCC); // set event handler for CC
   usbMIDI.setHandleRealTimeSystem(RealTimeSystem); // step sequencer
   usbMIDI.setHandlePitchChange(OnPitchChange);
   
-  attachInterrupt(10, readEncoderB, CHANGE);
-  attachInterrupt(9, readEncoderB, CHANGE);
-  attachInterrupt(8, readEncoderA, CHANGE);
-  attachInterrupt(7, readEncoderA, CHANGE);
-  
-  pinMode(23, INPUT_PULLUP); //shift button
-  pinMode(13, INPUT_PULLUP);
-  pinMode(12, INPUT_PULLUP);
-  
+  attachInterrupt(ENCA_PIN1, readEncoderA, CHANGE);
+  attachInterrupt(ENCA_PIN2, readEncoderA, CHANGE);
+  attachInterrupt(ENCB_PIN1, readEncoderB, CHANGE);
+  attachInterrupt(ENCB_PIN2, readEncoderB, CHANGE);
+    
   clockTimer.begin(internalSequencerStep,sequencerInterval);
-  lcdTimer.begin(sevenSegUpdate,100);
+
+  welcomeAnimation();
+
+  lcdPrintStr("seqc");
 }
 
 

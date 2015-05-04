@@ -1,8 +1,13 @@
+// Functions:
+//
+// void internalSequencerStep()                        - ...
+// void checkStep(int i)                               - ...
+//
 //######################################################################################
 void internalSequencerStep(){
   if(!sequencerPaused){
-    // (Karg) MIDI.sendRealTime(Clock);
-//usbMIDI.sendRealTimeClock();
+    MIDI.sendRealTime(Clock);
+    // usbMIDI.sendRealTimeClock();
     
     clockCounter++; 
 
@@ -50,35 +55,29 @@ void internalSequencerStep(){
 //######################################################################################
 
 void checkStep(int i) {
-  if ((stepSequencer)&&(!sequencerPaused)) {  
+  if (!sequencerPaused) {  
     if ((msLastPlayed[i])&&(!msStepLegato[i][msSelectedPattern[i]][msCurrentStep[i]])) { //currentStep%midiSeqOutLength[i]
-        //midiNoteOnOff(false, i-1+7*16);
-        usbMIDI.sendNoteOff(msLastPlayedNote[i], 0, msChannel[i]);
-        if(sequencerMidiOut){
-            // (Karg) MIDI.sendNoteOff(msLastPlayedNote[i], 0, msChannel[i]);
-        }
-        msLastPlayed[i]=false;
-		msLastTie[i]=false;
-      }
-	  else if(msStepLegato[i][msSelectedPattern[i]][msCurrentStep[i]]){
-		msLastTie[i]=true;
-	  }
-	  
-	  if (((msStepState[i][msSelectedPattern[i]][msCurrentStep[i]])&&(msLastTie[i]))){
-		usbMIDI.sendNoteOff(msLastPlayedNote[i], 0, msChannel[i]);
-        // (Karg) MIDI.sendNoteOff(msLastPlayedNote[i], 0, msChannel[i]);
-        msLastPlayed[i]=false;
-		msLastTie[i]=false;
-	  }
+      //midiNoteOnOff(false, i-1+7*16);
+      usbMIDI.sendNoteOff(msLastPlayedNote[i], 0, msChannel[i]);
+      if(sequencerMidiOut) MIDI.sendNoteOff(msLastPlayedNote[i], 0, msChannel[i]);
+      msLastPlayed[i]=false;
+      msLastTie[i]=false;
+    } else if(msStepLegato[i][msSelectedPattern[i]][msCurrentStep[i]]) msLastTie[i]=true;
+    
+    if (((msStepState[i][msSelectedPattern[i]][msCurrentStep[i]])&&(msLastTie[i]))){
+      usbMIDI.sendNoteOff(msLastPlayedNote[i], 0, msChannel[i]);
+      MIDI.sendNoteOff(msLastPlayedNote[i], 0, msChannel[i]);
+      msLastPlayed[i]=false;
+      msLastTie[i]=false;
+    }
 
-      if ((msStepState[i][msSelectedPattern[i]][msCurrentStep[i]])&&(!msMuted[i])) { //currentStep%midiSeqOutLength[i]
-        int prob = random(0, 127);
-        if(prob<msStepChance[i][msSelectedPattern[i]][msCurrentStep[i]]){
-          usbMIDI.sendNoteOn(msRootNote[i]+msStepNote[i][msSelectedPattern[i]][msCurrentStep[i]], msStepVelocity[i][msSelectedPattern[i]][msCurrentStep[i]], msChannel[i]);
-          if(sequencerMidiOut)
-            // (Karg) MIDI.sendNoteOn(msRootNote[i]+msStepNote[i][msSelectedPattern[i]][msCurrentStep[i]], msStepVelocity[i][msSelectedPattern[i]][msCurrentStep[i]], msChannel[i]); //currentStep%midiSeqOutLength[i]
+    if ((msStepState[i][msSelectedPattern[i]][msCurrentStep[i]])&&(!msMuted[i])) { //currentStep%midiSeqOutLength[i]
+      int prob = random(0, 127);
+      if(prob<msStepChance[i][msSelectedPattern[i]][msCurrentStep[i]]){
+        usbMIDI.sendNoteOn(msRootNote[i]+msStepNote[i][msSelectedPattern[i]][msCurrentStep[i]], msStepVelocity[i][msSelectedPattern[i]][msCurrentStep[i]], msChannel[i]);
+        if(sequencerMidiOut) MIDI.sendNoteOn(msRootNote[i]+msStepNote[i][msSelectedPattern[i]][msCurrentStep[i]], msStepVelocity[i][msSelectedPattern[i]][msCurrentStep[i]], msChannel[i]); //currentStep%midiSeqOutLength[i]
           msLastPlayed[i]=true;
-		  msLastTie[i]=false;
+	  msLastTie[i]=false;
           msLastPlayedNote[i]=msRootNote[i]+msStepNote[i][msSelectedPattern[i]][msCurrentStep[i]]; //currentStep%midiSeqOutLength[i]
         }
       }
