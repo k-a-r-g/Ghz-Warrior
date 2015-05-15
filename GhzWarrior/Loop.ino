@@ -3,7 +3,7 @@
 // void Loop()                                         - Main program
 //
 // #####################################################################################################################
-void loop() {    
+void loop(){
   if ((bpmChange) && (!externalClock)) {                           // BPM were changes, restart the clock
     //noInterrupts();
     if ((millis() - bpmChangeTime) > 25) {
@@ -19,62 +19,69 @@ void loop() {
       isShift = true;
       //displayEnc=0; // stop displaying encoders
       //saveLedState();
-    } else {
+    } else {                                                       // shift got released
       isShift = false;
       //displayEnc=0; // stop displaying encoders
       //loadLedState();
     }
   }
 
-  if ((page == TRACKS_PAGE) || (page == SEQ_PAGE_1) || (page == SEQ_PAGE_2)) { // read edit button
+  if ((page == TRACKS_PAGE) || (page == SEQ_PAGE_1) || (page == SEQ_PAGE_2) || (page == SEQ_PAGE_3) || (page == SEQ_PAGE_4)) { // read edit button
     if ( editButton.update() ) {
-      if ( editButton.read() == LOW) {
+      if (editButton.read() == LOW) {
         stepEditMode = !stepEditMode;
-        digitalWrite(ENCX_YLED_PIN, stepEditMode);
-        lcdPrintStr("edit");
+        digitalWrite(ENCX_YLED_PIN, stepEditMode); 
+        if (stepEditMode) lcdPrintStr("edit", true);
+        else switch(page) { 
+          case SEQ_PAGE_1:
+            lcdPrintStr("sen1", true);
+            break; 
+          case SEQ_PAGE_2:
+            lcdPrintStr("sen2", true);
+            break; 
+          case SEQ_PAGE_3:
+            lcdPrintStr("sen3", true);
+            break; 
+          case SEQ_PAGE_4:
+            lcdPrintStr("sen4", true);
+            break; 
+          case TRACKS_PAGE:               
+            lcdPrintStr("trck", true);
+            break;                
+        }
       }
     }
   }
 
   if ( seqButton.update() ) {                                      // read sequence button
     if ( seqButton.read() == LOW) {
-      if (page == SEQ_PAGE_1) page = SEQ_PAGE_2;
-      else page = SEQ_PAGE_1;
-      lcdPrintStr("seqc");
+      if ((page>=SEQ_PAGE_1) && (page<=SEQ_PAGE_4)){  
+        page++;                                                    // when pressed, cycle through sequencer pages
+        if (page>SEQ_PAGE_4) page = SEQ_PAGE_1;
+      }else page = SEQ_PAGE_1;
+      switch (page) {
+        case SEQ_PAGE_1:
+          lcdPrintStr("sen1");
+          break;
+        case SEQ_PAGE_2:
+          lcdPrintStr("sen2");
+          break;
+        case SEQ_PAGE_3:
+          lcdPrintStr("sen3");
+          break;
+        case SEQ_PAGE_4:
+          lcdPrintStr("sen4");
+          break;
+      }        
     }
   }
 
-  if ( trackButton.update() ) {                                    // read tracks button
-    if ( trackButton.read() == LOW) {
+  if ( trackButton.update() )                                      // read tracks button
+    if (trackButton.read() == LOW) {
       page = TRACKS_PAGE;
       lcdPrintStr("trac");
-      for (int i = 0; i < 4; i++) {
-        msChannelHasPattern[i] = false;
-
-        for (int k = 0; k < 4; k++) {
-          msHasPattern[i][k] = false;
-          for (int j = 0; j < steps; j++) {
-            if (msStepState[i][k][j]) {
-              msHasPattern[i][k] = true;
-              msChannelHasPattern[i] = true;
-            }
-          }
-        }
-      }
-
-      for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-          if (msHasPattern[i][j]) setPagePixel(YELLOW, 5, j * 4 + i);
-          else setPagePixel(0, 5, j * 4 + i);
-        }
-        if (msMuted[i]) setPagePixel(PINK, 5, msSelectedPattern[i] * 4 + i);
-        else setPagePixel(GREEN, 5, msSelectedPattern[i] * 4 + i);
-
-        if (stepEditMode) setPagePixel(RED, 5, msSelectedSequence);
-        else setPagePixel(WHITE, 5, msSelectedSequence);
-      }
     }
-  }
+  
   
   readEditPots();                                                  // read all potentiometer values
   readButtonpad();                                                 // check if buttons are pressed/released on the pad
@@ -99,5 +106,7 @@ void loop() {
   //readEncoders();
 
   usbMIDI.read();                                                   // read all the incoming midi messages
+
+  if ((millis()-blinkTimer) > 2*blinkTime) blinkTimer = millis();   // reset blink timer
 }
 

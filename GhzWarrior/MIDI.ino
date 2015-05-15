@@ -63,7 +63,7 @@ void OnNoteOn(byte channel, byte note, byte velocity) {
         //setPagePixel(BLUE,pg,ld);
       }
       else
-        setPagePixel(0, pg, ld);
+        setPagePixel(OFF, pg, ld);
     }
   }
   
@@ -90,7 +90,7 @@ void OnNoteOff(byte channel, byte note, byte velocity) {
     {
       int ld=note%16; // find the led
       int pg=note/16; // find the page
-      setPagePixel(0, pg, ld);
+      setPagePixel(OFF, pg, ld);
     }
   }
   
@@ -107,88 +107,77 @@ void OnPitchChange(byte channel, int pitch) {
 }
 
 // ####################################################################################################################
+// STATUS       HEX    DEC    DESCRIPTION
+// 11111000     F8     248    Timing Clock
+// 11111001     F9     249    Undefined
+// 11111010     FA     250    Start
+// 11111011     FB     251    Continue
+// 11111100     FC     252    Stop
+// 11111101     FD     253    Undefined
+// 11111110     FE     254    Active Sensing
+// 11111111     FF     255    System Reset
+//
 void RealTimeSystem(byte realtimebyte) { 
 
 // to do, instead of running the whole sequencer
 // just set the internal sequencer bpm based on the incoming clock
   
-  if (realtimebyte == 248) {
-	if(!sequencerPaused){
-		MIDI.sendRealTime(Clock);
-		//usbMIDI.sendRealTimeClock();
+  if (realtimebyte == CLOCK) {                                       // Clock
+    if(!sequencerPaused){
+      MIDI.sendRealTime(Clock);
+      //usbMIDI.sendRealTimeClock();
 		
-		clockCounter++; 
-
-		  for(int i=0; i<4;i++){
-			if (clockCounter%(6*msStepLength[i]) == 0) { //6
-			if(msDirection[i]==0){  //forward
-			  msCurrentStep[i]++;
-			  if (msCurrentStep[i]>=msLength[i])
-				msCurrentStep[i]=0;
-			}
-			if(msDirection[i]==1){  //backwards
-			  msCurrentStep[i]--;
-			  if (msCurrentStep[i]<0)
-				msCurrentStep[i]=msLength[i]-1;
-			}
-			if(msDirection[i]==2){ // ping pong
-			  if(msDirAscending[i]){  //forward
-				msCurrentStep[i]++;
-				if (msCurrentStep[i]>=msLength[i]){
-				  msDirAscending[i]=false;
-				  msCurrentStep[i]-=2;
-				}
-			  }else{  //backwards
-				msCurrentStep[i]--;
-				if (msCurrentStep[i]<0){
-				  msDirAscending[i]=true;
-				  msCurrentStep[i]+=2;
-				}
-			  }
-			}
-			if(msDirection[i]==3){  //random
-			  msCurrentStep[i]=random(0,msLength[i]);
-			}
-		  checkStep(i);
-		  }
-		}
-
-		if (clockCounter == 48) { //24
-		  clockCounter = 0;
-		}
-	  }
+      clockCounter++;
+      executeStep();
+      if (clockCounter == STEPS*6) {
+        clockCounter = 0;                            // why 6?
+        beatCounter++;
+        lcdPrintInt(beatCounter+1);
+      }
+    }
   } 
 
   if (realtimebyte == START || realtimebyte == CONTINUE) {
-	externalClock=true;
-	clockTimer.end();
+    if (realtimebyte == START) clockCounter = 0;
+    externalClock=true;
+    clockTimer.end();
 	
     sequencerPaused=false;
-	for(int i=0; i<4; i++){
-	  msCurrentStep[i]=0;
-	  checkStep(i);
-	}
   }
 
   if (realtimebyte == STOP) {
+    lcdPrintStr("stop", true);
     sequencerPaused=true;
-	externalClock=false;
-	for(int i=0; i<4; i++){
-	  msCurrentStep[i]=0;
-	}
+    externalClock=false;
+    for(int v=0; v<VOICES; v++){
+      msCurrentStep[v]=0;
+      MIDI.sendControlChange(123,127,msChannel[v]);      // turn all notes off on that channel
+      usbMIDI.sendControlChange(123,127,msChannel[v]);
+    }
   }
   
-   if(realtimebyte == START){
-       // MIDI.sendRealTime(Stop);
-       // MIDI.sendSongPosition(0);
-       // MIDI.sendRealTime(SystemReset);
-       MIDI.sendRealTime(Start); 
-     }
-   if(realtimebyte == CONTINUE){
-       MIDI.sendSongPosition(0);
-       MIDI.sendRealTime(Continue); 
-   }
-  
+  if(realtimebyte == START){
+    lcdPrintStr("play", true);
+     beatCounter=0;
+    for (int v=0;v<VOICES;v++){
+      msCurrentPattern[v]=0;
+      msCurrentStep[v]=0;
+      msStepCounter[v]=0;  
+      msRepeatCounter[v]=0;
+      checkStep(v);
+    }
+
+
+    // MIDI.sendRealTime(Stop);
+    // MIDI.sendSongPosition(0);
+    // MIDI.sendRealTime(SystemReset);
+    MIDI.sendRealTime(Start); 
+  }
+  if(realtimebyte == CONTINUE){
+    lcdPrintStr("cntn", true);
+    MIDI.sendSongPosition(0);
+    MIDI.sendRealTime(Continue); 
+  }
 }
 
 //######################################################################################

@@ -1,0 +1,29 @@
+The Ghz Warrior is based on Firmware 1.4 of the Digital Warrior by Tomash Ghz.
+Continuing his version numbering scheme, we therefore start with 1.4
+
+Version 1.4.1
+  + rearranged code
+  + initial SD card support
+  + display version on startup
+  + disabled encoders (I do not have received them yet, so I cannot test/use)
+
+Version 1.4.2
+  + removed parts to control Ableton
+  + removed parts for extension board
+  + further rearranged code to allow more flexible use of potentiometers and buttons later
+  + Probability is shown from 0-100 (%) instead of 0-127
+
+Version 1.4.3
+  + each voice has now 24 patterns each with a max length of 64 steps
+  + a sequence of patterns can be set by defining the number of times each pattern is repeated and which will be the next pattern afterwards  
+  + new Shift Page layout:	
+	RESTART		CLEAR		MUTE		PLAY
+	SONGS		-		-		DIRECTION
+	SEQ1-16		SEQ17-32	SEQ33-48	SEQ49-64
+	DURATION	TRANSPOSE	SCALE		CHANNEL
+  + DIRECTION button cycles through the play directions
+  + sends All Notes Off Midi command when external STOP signal is received
+  + several GUI tweaks
+  + seq Edit page constantly shows last changed values on LCD
+  + triggering legato mode now always leaves the held button normal, and turns on the secondly pressed (was different in reverse mode before)
+  + file format prepared for 6 voices, 24 patterns, 64 Steps with notes and MIDI CCs and 32 MIDI slides (spoiler!)

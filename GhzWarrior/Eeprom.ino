@@ -33,8 +33,8 @@ void loadPatternsEe(int v){
   int address = 1 + v*652; // song offset
   byte evalue;
   
-  for(int i=0;i<4;i++) { // tracks
-    for(int p=0;p<4;p++) { //patterns
+  for(int i=0;i<4;i++) {      // tracks
+    for(int p=0;p<4;p++) {    //patterns
       for (int s=0;s<4;s++) { // velocity
         evalue = EEPROM.read(address);
         msStepVelocity[i][p][s*8]=((evalue)&0x3)*42;
@@ -50,14 +50,14 @@ void loadPatternsEe(int v){
         msStepVelocity[i][p][s*8+7]=((evalue>>(3*2))&0x3)*42;
         address++;
       }
-      for(int s=0;s<32;s++) { //steps
+      for(int s=0;s<32;s++) { //steps, due to EEPROM limitations, 32 is the max
         evalue = EEPROM.read(address);
-        if(msStepVelocity[i][p][s]>0) msStepState[i][p][s] = true; // state
-        else msStepState[i][p][s] = false;
+        //if(msStepVelocity[i][p][s]>0) msStepState[i][p][s] = true; // state
+        //else msStepState[i][p][s] = false;
         	
         msStepNote[i][p][s]=evalue&0xF; // note
         msStepNote[i][p][s]+=((evalue>>4)&0x7)*12; // octave
-        msStepLegato[i][p][s]=(((evalue>>7)&1)==1);
+        //KARG:: msStepLegato[i][p][s]=(((evalue>>7)&1)==1);
         msStepChance[i][p][s]=127;
         address++;
       }
@@ -108,7 +108,7 @@ void savePatternsEe(int v){
         evalue=msStepNote[i][p][s]%12; // note
         evalue+=constrain((msStepNote[i][p][s]/12),0,7)<<4; // octave
 				
-        if(msStepLegato[i][p][s]) evalue+=1<<7;
+        //KARG: if(msStepLegato[i][p][s]) evalue+=1<<7;
         EEPROM.write(address, evalue);
         address++;
       }

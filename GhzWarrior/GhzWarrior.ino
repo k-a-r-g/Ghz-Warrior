@@ -1,13 +1,13 @@
-// digital warrior by Tomash Ghz
+// lcdDigital warrior by Tomash Ghz
 // modified by Karg (Timm Schlegelmilch)
 
-// http://digitalwarrior.co/
+// http://lcdDigitalwarrior.co/
 // http://tomashg.com/
 //
 // licenced under Creative Commons Attribution-ShareAlike 4.0
 // http://creativecommons.org/licenses/by-sa/4.0/
 
-// firmware version 1.4.1
+// firmware version 1.4.3
 
 // NOTE: I could not assemble the encoders yet (they are on back order), so these functions are commented out / untested
 // 
@@ -17,7 +17,13 @@
 //  and adjust PRODUCT_NAME_LEN accordingly
 //
 
-const char*       versionNum            = "142";
+// ToDo:
+// - write MIDI CC slide function: button1: channel, button 2: command, button 3: start (encA: beat, encB: value), button 4: stop (encA: beat, endB: value)
+// - write load/save setup routine
+// - TEST EEPROM ROUTINES!
+// - real-time clock with MTC messages
+
+const char*       versionNum            = "143";
 
 #define ENCODER_DO_NOT_USE_INTERRUPTS
 
@@ -39,7 +45,7 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 #define           SD_CARD_SS_PIN          29                // orange cable
 //#define         SD_CARD_SCK_PIN         13                // grey calbe
 //#define         SD_CARD_MOSI_PIN        11                // brown cable
-//#define         SD_CARD_MISO_PIN        12                // red calbe
+//#define         SD_CARD_MISO_PIN        12                // red cable
 
 //#define         MIDI_DIN_SEND_PIN       1                 // TX pin -> Serial1
 //#define         SDA_PIN                 18                // I2C bus to MCP23017 and MCP23008
@@ -53,8 +59,8 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 #define           SHIFT_BUTTON_PIN        0                 // the small black round one
 #define           EDIT_BUTTON_PIN         23
 
-#define           OCT_POT_PIN             14                // A0: Octave potentiometer
-#define           NOTE_POT_PIN            15                // A1: Note potentiometer
+#define           NOTE_POT_PIN            14                // A0: Octave potentiometer
+#define           OCT_POT_PIN             15                // A1: Note potentiometer
 #define           CHANCE_POT_PIN          17                // A4: Chance potentiometer
 #define           VEL_POT_PIN             16                // A2: Velocity potentiometer
 #define           ENCA_PIN1               8
@@ -100,33 +106,68 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 
 
 // macros for the different pages
-#define           DURATION_PAGE           0                 // set the note length of the current track to 16th 8th, quarter of half notes
-#define           TRANSP_PAGE             1                 // set the root note (in edit mode, it is the current track, outside of edit mode, it is all tracks)
-#define           SCALE_PAGE              2                 // set the scale, this changes wich notes can be set with the potentiometer
-#define           CHANNEL_PAGE            3                 // select the midi channels here
-#define           SONG_PAGE               4                 // the songs page
-#define           TRACKS_PAGE             5                 // the tracks page
-#define           SEQ_PAGE_1              6                 // page one of the sequencer (1-16)
-#define           SEQ_PAGE_2              7                 // page two of the sequencer (17-32)
+#define           DURATION_PAGE           0                 // "dur"  set the note length of the current track to 16th 8th, quarter of half notes
+#define           TRANSP_PAGE             1                 // "tran" set the root note (in edit mode, it is the current track, outside of edit mode, it is all tracks)
+#define           SCALE_PAGE              2                 // "scal" set the scale, this changes wich notes can be set with the potentiometer
+#define           CHANNEL_PAGE            3                 // "chan" select the midi channels here
+#define           SEQ_PAGE_1              4                 // "sen1" page one of the sequencer (notes 1-16)
+#define           SEQ_PAGE_2              5                 // "sen2" page two of the sequencer (notes 17-32)
+#define           SEQ_PAGE_3              6                 // "sen3" page one of the sequencer (notes 33-48)
+#define           SEQ_PAGE_4              7                 // "sen4" page two of the sequencer (notes 49-64)
+#define           SONG_PAGE               8                 // "song" songs page
+#define           TRACKS_PAGE             9                 // "trck" tracks page
+#define           DIRECTION_BUTTON        11                // button to cycle through the play directions
+#define           RESTART_BUTTON          12
+#define           CLEAR_BUTTON            13                // clear button
+#define           MUTE_BUTTON             14                // mute button
+#define           PLAY_BUTTON             15                // play button
+int               displayPages[10][4][4];                   // ten pages, 4 ?, 4 ?
+int               page                  = SEQ_PAGE_1;
+unsigned long     blinkTimer            = 0;
+const int         blinkTime             = 300;
 // shift button does not trigger a page, it sets isShift = true which then calls shiftPage()
 // edit button does not trippger a page, it sets stepEditMode = true
 
+
+// colors
+#define           OFF                     0
+#define           RED                     1
+#define           GREEN                   2
+#define           YELLOW                  3
+#define           BLUE                    4
+#define           PINK                    5
+#define           CYAN                    6
+#define           WHITE                   7
+int               pageColor[8]          = {GREEN, YELLOW, BLUE, RED, GREEN, GREEN, GREEN, GREEN};   //*******  KARG: ????
+
+
 // Feature definitions
-#define           VOICES                  4                 // max 4    or   8
-#define           PATTERNS                4                 // max 48        32
-#define           STEPS                   32                // max 64        64
+#define           VOICES                  6                 // 8   max 4   or  6
+#define           PATTERNS                24                // 24  max 32  or  24
+#define           STEPS                   64                
+#define           SLIDES                  32
+//128 bpm -> 32 beats (16 steps; 4/4) / minute
+//        -> 8 Patterns (64 steps) minute
+//        -> 4 minutes with absolutely unique patterns!
 
 
 // SD Card Variables
-const int         chipSelect            = SD_CARD_SS_PIN;
 SdFat             sd;
 SdFile            file;
 boolean           sdPresent             = false;
 char              fileName[13];
 
 
-// Butonpad Variables
+// regular buttons
 #define           BOUNCE_DELAY            24                //26 //30
+Bounce            shiftButton           = Bounce(SHIFT_BUTTON_PIN, BOUNCE_DELAY);    // page shift button
+boolean           isShift               = false;
+Bounce            editButton            = Bounce(EDIT_BUTTON_PIN, BOUNCE_DELAY);
+Bounce            seqButton             = Bounce(SEQ_BUTTON_PIN, BOUNCE_DELAY);
+Bounce            trackButton           = Bounce(TRACKS_BUTTON_PIN, BOUNCE_DELAY);
+
+
+// Butonpad Variables
 #define           BUTTONPAD_DEVICE_NUM    0                 // I2C device number
 Adafruit_MCP23008 _buttonpad;
 int               buttonRow[]           = {BUTTON_ROW_1, BUTTON_ROW_2, BUTTON_ROW_3, BUTTON_ROW_4};
@@ -134,6 +175,8 @@ int               buttonCol[]           = {BUTTON_COL_1, BUTTON_COL_2, BUTTON_CO
 boolean           buttons[4][4];                            // stores the button state
 boolean           buttonsLast[4][4];                        // button state in the last cycle (used to evaluate changes)
 unsigned long     buttonsBounce[4][4];                      // debounce timers for each button
+boolean           buttonPressed         = false;            // true while a button is pressed on SEQ and TRACK pages in edit mode
+int               buttonPressedNum      = 0;                // the number of the pressed button
 
 
 // LED Matrix Variables
@@ -145,23 +188,10 @@ int               ledRedPins[4]         = {LEDMATRIX_RED_1, LEDMATRIX_RED_2, LED
 int               ledGreenPins[4]       = {LEDMATRIX_GRN_1, LEDMATRIX_GRN_2, LEDMATRIX_GRN_3, LEDMATRIX_GRN_4};
 int               ledBluePins[4]        = {LEDMATRIX_BLU_1, LEDMATRIX_BLU_2, LEDMATRIX_BLU_3, LEDMATRIX_BLU_4};
 
-// display pages
-int               displayPages[8][4][4];
-Bounce            shiftButton           = Bounce(SHIFT_BUTTON_PIN, BOUNCE_DELAY);    // page shift button
-int               page                  = 6;
-boolean           isShift               = false;
 
-// colors
-#define           OFF                     0
-#define           RED                     1
-#define           GREEN                   2
-#define           YELLOW                  3
-#define           BLUE                    4
-#define           PINK                    5
-#define           CYAN                    6
-#define           WHITE                   7
-int               pageColor[8]          = {GREEN, YELLOW, BLUE, RED, GREEN, GREEN, GREEN, GREEN};   //*******
 
+
+// KARG: I NEED A NAME FOR THESE
 int               midiChannel           = 2;                // midi channel number   ******
 int               controlChannel        = 13;               // midi channel number    *******
 int               sequencerChannel      = 2;                // midi channel number  *******
@@ -169,23 +199,27 @@ boolean           secondary             = false;            // enable secondary 
 int               encodersBanked        = 1;                // *********
 int               stepLength            = 1;
 boolean           stackedSteps          = true;
-boolean           externalClock         = false;
+boolean           externalClock         = true;
 
 
 // Potentiometer stuff
-Potentiometer     *pot1;                                    // octave
-int               octavePotValue        = 0;
-boolean           octavePotTakeover     = false;
-boolean           octavePotChange       = false;
-Potentiometer     *pot2;                                    // note
+#define           NOTE                    1                 // note
+Potentiometer     *pot1;                                    
 int               notePotValue          = 0;
 boolean           notePotTakeover       = false;
 boolean           notePotChange         = false;
-Potentiometer     *pot3;                                    // velocity
+#define           OCTAVE                  2                 // octave
+Potentiometer     *pot2;                                    
+int               octavePotValue        = 0;
+boolean           octavePotTakeover     = false;
+boolean           octavePotChange       = false;
+#define           VELOCITY                3                 // velocity
+Potentiometer     *pot3;                                    
 int               velocityPotValue      = 0;
 boolean           velocityPotTakeover   = false;
 boolean           velocityPotChange     = false;
-Potentiometer     *pot4;                                    // ptobability
+#define           PROPABILITY             4                 // propability
+Potentiometer     *pot4;                                   
 int               probPotValue          = 0;
 boolean           probPotTakeover       = false;
 boolean           probPotChange         = false;
@@ -212,10 +246,10 @@ unsigned long     displayTimer          = 0;
 boolean           sequencerPaused       = true;
 int               selectedVoice         = 0;
 int               currentStep           = 0;
-int               steps                 = 32;               // number of steps actively used ****   WHAT EXACTLY ARE THESE?
 int               counter               = 0;
 
-byte              clockCounter          = 0;
+int               clockCounter          = 0;
+int               beatCounter           = 0;
 byte              CLOCK                 = 248;
 byte              START                 = 250;
 byte              CONTINUE              = 251;
@@ -237,64 +271,79 @@ boolean           internalSequencerPlaying = true;
 int               sequencerInterval     = (60000.0 / bpm / 24.0) * 1000;
 
 int               selectedStep          = 0;
-Bounce            editButton            = Bounce(EDIT_BUTTON_PIN, BOUNCE_DELAY);
-Bounce            seqButton             = Bounce(SEQ_BUTTON_PIN, BOUNCE_DELAY);
-Bounce            trackButton           = Bounce(TRACKS_BUTTON_PIN, BOUNCE_DELAY);
-//Bounce            egatoButton           = Bounce(2, 30);
-//Bounce            editButton2           = Bounce(16, BOUNCE_DELAY);
 boolean           stepEditMode          = false;
 
 
 //melodic 4 voice sequencer.
-int               msSelectedEditPattern = 0;
-int               msSelectedSequence    = 0;
-int               msSelectedVoice     = 0;
+int               msSelectedEditPattern = 0;              
+int               msSelectedPattern     = 0;                // the pattern that is currently accessible through the GUI (Pattern # + voices # * 4)
+int               msSelectedVoice       = 0;                // current voice #
 int               msRootNote[VOICES];
-int               msCurrentStep[VOICES];
+byte              msCurrentStep[VOICES];                    // shows the current step (is influenced by msDirection)
+byte              msStepCounter[VOICES];                    // counts the number of steps that have been processed in this pattern to decide when to advance to the next pattern
+#define           FORWARD                 0
+#define           BACKWARD                1
+#define           PINGPONG                2
+#define           RANDOM                  3
 int               msDirection[VOICES];
-int               msStepLength[VOICES];
+int               msStepLength[VOICES];                     // length of eath step: 1: 16th, 2: 8th, 4: quarter, 8: half notes
 boolean           msDirAscending[VOICES];
-int               msChannel[VOICES];
-int               msLength[VOICES];
-int               msSelectedPattern[VOICES];
-boolean           msHasPattern[VOICES][PATTERNS];
-boolean           msChannelHasPattern[VOICES];              // has this voice+pattern andy notes set? I guess the array are x/y, meaning voice/pattern
+int               msChannel[VOICES];                        // MIDI channel
+int               msLength[VOICES];                         // current set length of the patterns
 boolean           msLastPlayed[VOICES];
 int               msLastPlayedNote[VOICES];
 boolean           msMuted[VOICES];
-boolean           msStepState[VOICES][PATTERNS][STEPS];     // [voice][pattern][step]
-byte              msStepNote[VOICES][PATTERNS][STEPS];      // only 7 bits are used for MIDI notes, so the highest bit could be used to store a boolean variable (WAS 36 instead of 32, WHY????)                            
-byte              msStepVelocity[VOICES][PATTERNS][STEPS];  // same here
+int               msCurrentPattern[VOICES];                 // the currently playing pattern of the currently selected voice
+byte              msForceNextPattern[VOICES];               // next pattern was manually selected through the GUI, override the programmed sequence of patterns
+boolean           msVoiceHasPattern[VOICES];                // has this voice+pattern andy notes set? I guess the array are x/y, meaning voice/pattern
+byte              msRepeatCounter[VOICES];                  // how often has it been played?
+byte              msRepeatPattern[VOICES][PATTERNS];        // how often should this pattern be repeated
+boolean           msHasPattern[VOICES][PATTERNS];
+byte              msNextPattern[VOICES][PATTERNS];          // the pattern to play after this one
+byte              msStepNote[VOICES][PATTERNS][STEPS];      // only 7 bits are used for MIDI notes, so the highest bit s used for the boolean Legato                            
+byte              msStepVelocity[VOICES][PATTERNS][STEPS];  // only 7 bits are used for MIDI velocity, so the highest bit is used to store a boolean variable that indicates if this step is active
 byte              msStepChance[VOICES][PATTERNS][STEPS];    // same here
-boolean           msStepLegato[VOICES][PATTERNS][STEPS];
-boolean           stepPressed          = false;
-int               stepPressedNum       = 0;
+byte              msStepCC[VOICES][PATTERNS][STEPS];
+byte              msStepCCValue[VOICES][PATTERNS][STEPS];
+
 boolean           msLastTie[VOICES];
 
-int               msPreviewNote        = 0;
-int               msPreviewChannel     = 0;
-int               msPreviewTime        = 0;
-boolean           msPlayingPreview     = false;
+int               msPreviewNote         = 0;
+int               msPreviewChannel      = 0;
+int               msPreviewTime         = 0;
+boolean           msPlayingPreview      = false;
+
+
+// the midi slide
+byte              slVoice[SLIDES];                          // this defines the MIDI channel and the pattern length, highest bit indicates if this slide is set
+byte              slStartBeat[SLIDES];                      // i.e. the number of full patterns that have been played already
+byte              slStartStep[SLIDES];                      // max 64 steps/patterm , so 6 bits are enough
+byte              slStartValue[SLIDES];
+byte              slStopBeat[SLIDES];
+byte              slStopStep[SLIDES];
+byte              slStopValue[SLIDES];
+byte              slRemainding[SLIDES];                     // (start-stop)
+                                                            // calculate the step size on the fly by remainding/last-pattern-curretn pattern (include the steps)
 
 IntervalTimer     clockTimer;
 IntervalTimer     lcdTimer;
 
-char              scaleNotes[12][12]   = {{0, 2, 3, 5, 7, 9, 11},      // melodic min
-  {0, 2, 3, 5, 7, 8, 11},      // harmonic minor
-  {0, 2, 3, 5, 7, 8, 10},      // natural minor
-  {0, 2, 4, 5, 7, 9, 11},      // major
-  {0, 2, 4, 6, 8, 10, 11},     // harmonic major
-  {0, 3, 5, 7, 10},            //minor pentatonic
-  {0, 2, 4, 7, 9},             //major pentatonic
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, // chromatic
-  {0, 3, 5, 6, 7, 10},         // blues scale
-  {0, 2, 3, 5, 6, 8, 9, 11},   // diminished
-  {0, 2, 4, 6, 8, 10},         // whole tone
-  {0, 2, 4, 5, 7, 9, 10, 11}
-};        // bebop dominant
 
-int               msScaleLength[12]    = {7, 7, 7, 7, 7, 5, 5, 12, 6, 8, 6, 8};
-int               msCurrentScale[4];
+char              scaleNotes[12][12]    = {{0, 2, 3, 5, 7, 9, 11},      // melodic min
+                                           {0, 2, 3, 5, 7, 8, 11},      // harmonic minor
+                                           {0, 2, 3, 5, 7, 8, 10},      // natural minor
+                                           {0, 2, 4, 5, 7, 9, 11},      // major
+                                           {0, 2, 4, 6, 8, 10, 11},     // harmonic major
+                                           {0, 3, 5, 7, 10},            //minor pentatonic
+                                           {0, 2, 4, 7, 9},             //major pentatonic
+                                           {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, // chromatic
+                                           {0, 3, 5, 6, 7, 10},         // blues scale
+                                           {0, 2, 3, 5, 6, 8, 9, 11},   // diminished
+                                           {0, 2, 4, 6, 8, 10},         // whole tone
+                                           {0, 2, 4, 5, 7, 9, 10, 11}}; // bebop dominant
+
+int               msScaleLength[12]     = {7, 7, 7, 7, 7, 5, 5, 12, 6, 8, 6, 8};
+int               msCurrentScale[VOICES];
 
 
 /* LCD stuff:
@@ -340,18 +389,25 @@ index 36 : y
 index 37 : z
 */
 
-#define	          DOTPOINT_MASK          80
-char              sevencodes[]         = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x00, 0x63, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71, 0x3D, 0x76, 0x30, 0x1E, 0x72, 0x38, 0x55, 0x54, 0x5C, 0x73, 0x67, 0x50, 0x2D, 0x78, 0x1C, 0x1C, 0x2A, 0x49, 0x6E, 0x1B};
-// original: char sevencodes[]         = {0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F,0x00,0x63,0x77,0x7C,0x39,0x5E,0x79,0x71,0x3D,0x76,0x30,0x1E,0x72,0x38,0x55,0x54,0x5C,0x73,0x67,0x50,0x2D,0x78,0x1C,0x14,0x2A,0x49,0x6E,0x1B};
-char              noteStrings[12][3]   = {"c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"};
-char              scalesStrings[12][5] = {"melm", "harm", "natm", "majr", "har", "penm", "pent", "chro", "blue", "dimn", "whot", "bebp"};
-int               a                    = 0;
+#define	          DOTPOINT_MASK           80
+char              sevencodes[]          = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x00, 0x63, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71, 0x3D, 0x76, 0x30, 0x1E, 0x72, 0x38, 0x55, 0x54, 0x5C, 0x73, 0x67, 0x50, 0x2D, 0x78, 0x1C, 0x1C, 0x2A, 0x49, 0x6E, 0x1B};
+// original: char sevencodes[]          = {0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F,0x00,0x63,0x77,0x7C,0x39,0x5E,0x79,0x71,0x3D,0x76,0x30,0x1E,0x72,0x38,0x55,0x54,0x5C,0x73,0x67,0x50,0x2D,0x78,0x1C,0x14,0x2A,0x49,0x6E,0x1B};
+char              noteStrings[12][3]    = {"c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"};
+char              scalesStrings[12][5]  = {"melm", "harm", "natm", "majr", "har", "penm", "pent", "chro", "blue", "dimn", "whot", "bebp"};
+int               a                     = 0;
 
-int               digit[]              = {0, 0, 0, 0};
-boolean           showDigit[]          = {false, false, false, false};
-boolean           decimal              = false;
-byte              song                 = 0;
+int               lcdDigit[]            = {0, 0, 0, 0};
+unsigned long     lcdLastTime           = 0;                // variabel to store lcdDelay time, set to millis() if the timer should be started
+unsigned int      lcdDelay              = 1000;             // time in ms to show page names on lcd
+boolean           lcdShowDigit[]        = {false, false, false, false};
+boolean           decimal               = false;
 
+byte              song                  = 0;
+byte              patternOffset         = 0;                // pattern offset for tracks page
+
+
+// Declaration of functions with optional parameters
+void lcdPrintStr(char const* str, boolean important = false);
 
 
 
@@ -381,7 +437,7 @@ void playPreviewNote(int noteX, int velX, int chanX) {
 
 
 // #####################################################################################################################
-boolean noteInScale(int n, int s) { // check if a given note interval is in a scale
+boolean noteInScale(int n, int s) {                         // check if a given note interval is in a scale
   n = n % 12;
   boolean flag = false;
   for (int i = 0; i < msScaleLength[s]; i++)
