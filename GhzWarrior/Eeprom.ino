@@ -1,3 +1,13 @@
+/*
+
+  Sorry, no EEPROM functionality right now, have to adjust this to the new functionality
+  but due to EEPROM size restriction and SD card advantages, this has very low priority on my list
+  
+  , Karg
+  
+  
+*/
+
 // Functions:
 //
 // void loadSetupEe()                                  - load the configuration from eeprom
@@ -12,6 +22,7 @@
 //
 //######################################################################################
 void loadSetupEe(){
+  /*
   int address = 0;
   byte evalue;
   
@@ -26,15 +37,17 @@ void loadSetupEe(){
       savePatternsEe(i);
     }
   }
+  */
 }
 
 //######################################################################################
 void loadPatternsEe(int v){
+  /*
   int address = 1 + v*652; // song offset
   byte evalue;
   
   for(int i=0;i<4;i++) {      // tracks
-    for(int p=0;p<4;p++) {    //patterns
+    for(int p=0;p<4;p++) {    // patterns
       for (int s=0;s<4;s++) { // velocity
         evalue = EEPROM.read(address);
         msStepVelocity[i][p][s*8]=((evalue)&0x3)*42;
@@ -52,8 +65,8 @@ void loadPatternsEe(int v){
       }
       for(int s=0;s<32;s++) { //steps, due to EEPROM limitations, 32 is the max
         evalue = EEPROM.read(address);
-        //if(msStepVelocity[i][p][s]>0) msStepState[i][p][s] = true; // state
-        //else msStepState[i][p][s] = false;
+        if(msStepVelocity[i][p][s]>0) msStepState[i][p][s] = true; // state
+        else msStepState[i][p][s] = false;
         	
         msStepNote[i][p][s]=evalue&0xF; // note
         msStepNote[i][p][s]+=((evalue>>4)&0x7)*12; // octave
@@ -80,10 +93,13 @@ void loadPatternsEe(int v){
     address++;
     msMuted[i]=false;  
   }    
+  lcdPrintStr("load", true);
+  */
 }
 
 //######################################################################################
 void savePatternsEe(int v){
+  /*
   int address = 1 + v*652; // song offset
   byte evalue;
   
@@ -142,5 +158,7 @@ void savePatternsEe(int v){
     EEPROM.write(address, evalue);
     address++;
   }
+  lcdPrintStr("save", true);
+  */
 }
 

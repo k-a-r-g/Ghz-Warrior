@@ -24,7 +24,7 @@ void setup() {
   pinMode(SEQ_BUTTON_PIN, INPUT_PULLUP);
   pinMode(EDIT_BUTTON_PIN, INPUT_PULLUP);   
 
-  pot1=new Potentiometer(NOTE_POT_PIN, controlChannel, 18, false, false); // PIN, midi channel, cc number, secondary super know, debug
+  pot1=new Potentiometer(NOTE_POT_PIN, controlChannel, 18, false, false); // PIN, midi channel, cc number, secondary super knob, debug
   pot2=new Potentiometer(OCT_POT_PIN, controlChannel, 17, false, false); 
   pot3=new Potentiometer(VEL_POT_PIN, controlChannel, 19, false, false);
   pot4=new Potentiometer(CHANCE_POT_PIN, controlChannel, 20, false, false);
@@ -56,7 +56,7 @@ void setup() {
     msForceNextPattern[v]=255;
     msRepeatCounter[v]=0;
     msChannel[v]=sequencerChannel+1+v;
-    msLength[v]=64;
+    msLength[v]=16;
     msCurrentScale[v]=7;
     msCurrentPattern[v]=0;
     msLastPlayed[v]=false;
@@ -87,6 +87,17 @@ void setup() {
     slRemainding[s]=0;                    
   }
              
+  switch (mtcFPS){                          // MIDI Time Code frames/s
+    case 24:
+      mtcFPSBits = 0<<1;
+      break;
+    case 25:
+      mtcFPSBits = 1<<1;
+      break;
+    case 30:
+      mtcFPSBits = 2<<1;
+      break;
+  }
   MIDI.begin();
   usbMIDI.setHandleNoteOff(OnNoteOff);      //set event handler for note off
   usbMIDI.setHandleNoteOn(OnNoteOn);        //set event handler for note on

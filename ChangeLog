@@ -27,3 +27,8 @@ Version 1.4.3
   + seq Edit page constantly shows last changed values on LCD
   + triggering legato mode now always leaves the held button normal, and turns on the secondly pressed (was different in reverse mode before)
   + file format prepared for 6 voices, 24 patterns, 64 Steps with notes and MIDI CCs and 32 MIDI slides (spoiler!)
+
+Version 1.4.4
+  + generates MTC codes
+  + sends MIDI clock and Time codes over USB
+  + added the option to compile without SD card mod

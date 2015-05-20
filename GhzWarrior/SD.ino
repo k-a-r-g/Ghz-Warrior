@@ -11,15 +11,17 @@
 //
 //######################################################################################
 void initSd() {
+#ifdef SD_MOD
   // Initialize SdFat or print a detailed error message and halt
   // Use half speed like the native library.
   // change to SPI_FULL_SPEED for more performance.
-  if (sd.begin(SD_CARD_SS_PIN, SPI_HALF_SPEED)) sdPresent = true;
+  //if (sd.begin(SD_CARD_SS_PIN, SPI_HALF_SPEED)) sdPresent = true;
+#endif
 }
 
 //######################################################################################
 void loadSetupSd() {
-
+#ifdef SD_MOD
   sd.chdir(); // change current directory to root
   if (!file.open("GhzWar.set")) saveSetupSd(); // if we're in the root and we can't open the file, generate it
   else { // load the settings
@@ -41,11 +43,13 @@ void loadSetupSd() {
     //}
     file.close();
   }
+#endif
 }
 
 //######################################################################################
 //save settings to SD
-void saveSetupSd() {
+void saveSetupSd(){ 
+#ifdef SD_MOD
   int settingsBuffer[10];
 
   file.open("GhzWar.set", O_RDWR | O_CREAT); // create file if it doesn't exist and open the file for write
@@ -53,13 +57,14 @@ void saveSetupSd() {
     if (file.sync()) lcdPrintStr("done");
   }
   file.close();
+#endif
 }
 
 //######################################################################################
 //load Patterns from SD
-void loadPatternsSd(int v) {
+void loadPatternsSd(int v){
+#ifdef SD_MOD
   // v was the parameter, so this selects the song:
-  v = 4;
   
   int address;
   byte sdBuffer[8];
@@ -153,11 +158,12 @@ void loadPatternsSd(int v) {
   file.close();
   if (sdError) lcdPrintStr("err1", true);
   else lcdPrintStr("load", true);
+#endif
 }
 
 //######################################################################################
 void savePatternsSd(int v){                                // v is the song number 
-  v = 4;
+#ifdef SD_MOD
   
   byte sdBuffer[8];  // the sd card uses 512 byte buffers, so anything smaller won't make much sense
   byte evalue;
@@ -239,11 +245,13 @@ void savePatternsSd(int v){                                // v is the song numb
     else lcdPrintStr("err2", true);
   }
   file.close();
+#endif
 }
 
 
 //######################################################################################
 void int2filename(int num){
+#ifdef SD_MOD
   char lcdDigit[5];
 
   memset(lcdDigit,0,sizeof(lcdDigit));
@@ -275,6 +283,6 @@ void int2filename(int num){
   
   for (int f = 0; f < i; f++) fileName[f] = lcdDigit [f];
   strncpy(fileName+i, ".sng", 4);
-
+#endif
 }
 

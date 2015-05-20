@@ -10,7 +10,7 @@
 void internalSequencerStep(){
   if(!sequencerPaused){
     MIDI.sendRealTime(Clock);
-    // usbMIDI.sendRealTimeClock();
+    usbMIDI.sendRealTime(Clock);
     
     clockCounter++; 
     
@@ -25,17 +25,19 @@ void internalSequencerStep(){
 
 //######################################################################################
 void executeStep() {
+  
   for(int v=0; v<VOICES;v++){
     if (clockCounter%(6*msStepLength[v]) == 0) {                                                   // 6
- 
+                                                                                                   // we first determine which is the next step to play...
       if(msDirection[v]==FORWARD){                                                                 // forward
         msCurrentStep[v]++;
         if (msCurrentStep[v]>=msLength[v]) msCurrentStep[v]=0;
       }
+
       if(msDirection[v]==BACKWARD){                                                                // backwards
         msCurrentStep[v]--;
-        if (msCurrentStep[v]<0)
-          msCurrentStep[v]=msLength[v]-1;
+        if (msCurrentStep[v]<0) msCurrentStep[v]=msLength[v]-1;
+
       }else if(msDirection[v]==PINGPONG){                                                          // ping pong
         if(msDirAscending[v]){                                                                     // ping pong: forward
           msCurrentStep[v]++;
@@ -52,28 +54,19 @@ void executeStep() {
         }
       }
       if(msDirection[v]==RANDOM) msCurrentStep[v]=random(0,msLength[v]);                           // random      
-  
-  
-        Serial.println(msRepeatCounter[0]);
-
-
+    
       checkStep(v);
-      msStepCounter[v]++;                                                                          // advance Step Counter
-      if (msStepCounter[v] >= msLength[v]) {                                                       // enough steps of this pattern haven processed
-        
-
-
-        if (msRepeatPattern[v][msCurrentPattern[v]] > msRepeatCounter[v]) {
-        
-        msRepeatCounter[v]++;    // should we repeat this pattern?
-        
-        }
-        else {
-          msRepeatCounter[v] = 0;
-          msCurrentPattern[v] = msNextPattern[v][msCurrentPattern[v]];                             // if not, then jump to next pattern
-          if (msForceNextPattern[v]<255) {
+      
+      msStepCounter[v]++;                                                                          // ...and then check if the pattern is completed
+      if (msStepCounter[v]>=msLength[v]){                                                          // enough steps of this pattern haven processed
+        if (msRepeatPattern[v][msCurrentPattern[v]]>msRepeatCounter[v]){
+          msRepeatCounter[v]++;                                                                    // should we repeat this pattern?
+        }else{
+          msRepeatCounter[v]=0;
+          msCurrentPattern[v]=msNextPattern[v][msCurrentPattern[v]];                               // if not, then jump to next pattern
+          if (msForceNextPattern[v]<255){
             msCurrentPattern[v] = msForceNextPattern[v];                                           // if a pattern was manually set in the GUI, use this
-            msForceNextPattern[v] = 255;                                                            // inactivate 
+            msForceNextPattern[v]=255;                                                             // inactivate 
           }
         }
         

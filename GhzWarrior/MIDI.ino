@@ -1,28 +1,13 @@
 // Functions:
 //
-// void midiNoteOnOff(boolean s, int n)                - ...
 // void OnNoteOn(byte channel, byte note, byte velocity) 
 // void OnNoteOff(byte channel, byte note, byte velocity)   
 // void OnPitchChange(byte channel, int pitch)   
-// void realTimeSystem(byte realtimebyte)    
 // void OnCC(byte channel, byte control, byte value)
+// void midiNoteOnOff(boolean s, int n)                - ...
+// void midiSendMTC()
+// void realTimeSystem(byte realtimebyte)    
 //
-//######################################################################################
-// function to handle noteon outgoing messages
-void midiNoteOnOff(boolean s, int n) {
-
-  if (s) {
-    MIDI.sendNoteOn(n, 127, midiChannel);
-    usbMIDI.sendNoteOn(n, 127, midiChannel);
-    if(secondary) usbMIDI.sendControlChange(n, 127, midiChannel);
-  }
-  else {
-    MIDI.sendNoteOff(n, 0, midiChannel);
-    usbMIDI.sendNoteOff(n, 0, midiChannel);
-    if(secondary) usbMIDI.sendControlChange(n, 0, midiChannel);
-  }
-}
-
 // #####################################################################################################################
 // event handlers
 void OnNoteOn(byte channel, byte note, byte velocity) {
@@ -106,6 +91,117 @@ void OnPitchChange(byte channel, int pitch) {
   }
 }
 
+
+//######################################################################################
+void OnCC(byte channel, byte control, byte value) {
+  // add all your output component sets that will trigger with cc
+  //led.setOn(channel,control,value);
+  if (channel==controlChannel) {
+    if ((control>=0)&&(control<16)) {// its in range
+      int enc=control%2; //find the encoder
+      int pg=control/2; // find the bank
+
+
+      if (enc==0) { // its first encoder
+        encoderLedValueA[pg*encodersBanked]=value;
+        encoderLedValueA[pg*encodersBanked]=constrain(encoderLedValueA[pg*encodersBanked], 0, 127);
+
+        if (pg*encodersBanked==page*encodersBanked) { // if on the same page display
+          // set the display encoder flag
+          if ((displayEnc==1)||(displayEnc==3)) // already displaying encoder
+            displayEnc=3; // we want to display both encoders
+          else
+            displayEnc=2; // just display one encoder
+          displayTimer=millis(); // set the time
+        }
+      }
+      if (enc==1) { // its second encoder
+
+        encoderLedValueB[pg*encodersBanked]=value;
+        encoderLedValueB[pg*encodersBanked]=constrain(encoderLedValueB[pg*encodersBanked], 0, 127);
+
+        if (pg*encodersBanked==page*encodersBanked) { // if on the same page display
+          // set the display encoder flag
+          if ((displayEnc==2)||(displayEnc==3)) // already displaying encoder
+            displayEnc=3; // we want to display both encoders
+          else
+            displayEnc=1; // just display one encoder
+          displayTimer=millis(); // set the time
+        }
+      }
+    }
+  }
+  if(midiThrough){
+    if((channel!=controlChannel)&&(channel!=sequencerChannel)&&(channel!=midiChannel)) MIDI.sendControlChange(control,value,channel);
+  }
+}
+
+// #####################################################################################################################
+// function to handle note outgoing messages
+void midiNoteOnOff(boolean s, int n) {
+  if (s) {
+    MIDI.sendNoteOn(n, 127, midiChannel);
+    usbMIDI.sendNoteOn(n, 127, midiChannel);
+    if(secondary) usbMIDI.sendControlChange(n, 127, midiChannel);
+  }
+  else {
+    MIDI.sendNoteOff(n, 0, midiChannel);
+    usbMIDI.sendNoteOff(n, 0, midiChannel);
+    if(secondary) usbMIDI.sendControlChange(n, 0, midiChannel);
+  }
+}
+
+// ####################################################################################################################
+void midiSendMTC() {
+  switch(mtcType){
+    case 0: 
+      mtcValue=mtcF&0xF;         
+      break;
+    case 1: 
+      mtcValue=(mtcF&0xF0)/16;   
+      break;
+    case 2:
+      mtcValue=songS&0xF;         
+      break;
+    case 3: 
+      mtcValue=(songS&0xF0)/16;   
+      break;
+    case 4:
+      mtcValue=songM&0xF;         
+      break;
+    case 5:
+      mtcValue=(songM&0xF0)/16;   
+      break;
+    case 6: 
+      mtcValue=songH&0xF;         
+      break;
+    case 7: 
+      mtcValue=((songH&0xF0)/16)+mtcFPSBits;  
+      break;
+  }
+  
+  MIDI.sendTimeCodeQuarterFrame(mtcType, mtcValue);
+  usbMIDI.sendTimeCodeQuarterFrame(mtcType, mtcValue);
+
+  if (++mtcType>7){
+    mtcType=0;
+    mtcF+=2;
+    if (mtcF>mtcFPS-1){
+      songS++;
+      mtcF-=mtcFPS;
+    }
+    if (songS>59){
+      songM++;
+      songS-=60;
+    }
+    if (songM>59){
+      songH++;
+      songM-=60;
+    }
+  }
+}
+
+
 // ####################################################################################################################
 // STATUS       HEX    DEC    DESCRIPTION
 // 11111000     F8     248    Timing Clock
@@ -125,11 +221,11 @@ void RealTimeSystem(byte realtimebyte) {
   if (realtimebyte == CLOCK) {                                       // Clock
     if(!sequencerPaused){
       MIDI.sendRealTime(Clock);
-      //usbMIDI.sendRealTimeClock();
+      //usbMIDI.sendRealTime();
 		
       clockCounter++;
       executeStep();
-      if (clockCounter == STEPS*6) {
+      if (clockCounter == STEPS*6) {                 // one MIDI beat is every 6 clocks
         clockCounter = 0;                            // why 6?
         beatCounter++;
         lcdPrintInt(beatCounter+1);
@@ -177,50 +273,6 @@ void RealTimeSystem(byte realtimebyte) {
     lcdPrintStr("cntn", true);
     MIDI.sendSongPosition(0);
     MIDI.sendRealTime(Continue); 
-  }
-}
-
-//######################################################################################
-void OnCC(byte channel, byte control, byte value) {
-  // add all your output component sets that will trigger with cc
-  //led.setOn(channel,control,value);
-  if (channel==controlChannel) {
-    if ((control>=0)&&(control<16)) {// its in range
-      int enc=control%2; //find the encoder
-      int pg=control/2; // find the bank
-
-
-      if (enc==0) { // its first encoder
-        encoderLedValueA[pg*encodersBanked]=value;
-        encoderLedValueA[pg*encodersBanked]=constrain(encoderLedValueA[pg*encodersBanked], 0, 127);
-
-        if (pg*encodersBanked==page*encodersBanked) { // if on the same page display
-          // set the display encoder flag
-          if ((displayEnc==1)||(displayEnc==3)) // already displaying encoder
-            displayEnc=3; // we want to display both encoders
-          else
-            displayEnc=2; // just display one encoder
-          displayTimer=millis(); // set the time
-        }
-      }
-      if (enc==1) { // its second encoder
-
-        encoderLedValueB[pg*encodersBanked]=value;
-        encoderLedValueB[pg*encodersBanked]=constrain(encoderLedValueB[pg*encodersBanked], 0, 127);
-
-        if (pg*encodersBanked==page*encodersBanked) { // if on the same page display
-          // set the display encoder flag
-          if ((displayEnc==2)||(displayEnc==3)) // already displaying encoder
-            displayEnc=3; // we want to display both encoders
-          else
-            displayEnc=1; // just display one encoder
-          displayTimer=millis(); // set the time
-        }
-      }
-    }
-  }
-  if(midiThrough){
-    if((channel!=controlChannel)&&(channel!=sequencerChannel)&&(channel!=midiChannel)) MIDI.sendControlChange(control,value,channel);
   }
 }
 

@@ -248,9 +248,15 @@ void updateUI() {
               if (!sequencerPaused){
                 MIDI.sendSongPosition(0);
                 MIDI.sendRealTime(Start);
+                usbMIDI.sendRealTime(Start);
+                // KARG???
+                lcdPrintStr("play");
               }else{
                 MIDI.sendSongPosition(0);
                 MIDI.sendRealTime(Stop);
+                usbMIDI.sendRealTime(Stop);
+                lcdPrintStr("Stop");
+                // karg: ???
               }
               //savePatterns(selectedVoice);
               clockCounter = 0;
@@ -280,7 +286,8 @@ void updateUI() {
                 MIDI.sendSongPosition(0);
                 //usbMIDI.sendSongPosition(0);
                 MIDI.sendRealTime(Start);
-                //usbMIDI.sendRealTimeStart();
+                usbMIDI.sendRealTime(Start);
+                mtcTimer.begin(midiSendMTC, mtcInterval);
                 clockCounter = 0; 
                 setPagePixel(OFF, SEQ_PAGE_1+currentStep/STEPS, currentStep%16);
                 currentStep=0; 
@@ -290,6 +297,8 @@ void updateUI() {
               }else{
                 MIDI.sendSongPosition(0);
                 MIDI.sendRealTime(Stop);
+                usbMIDI.sendRealTime(Start);                
+                mtcTimer.end();
                 lcdPrintStr("stop");
                 //usbMIDI.sendSongPosition(0);
                 //usbMIDI.sendRealTimeStop();
